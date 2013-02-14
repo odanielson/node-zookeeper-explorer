@@ -599,6 +599,9 @@ function loadNodeStatsAndData(node) {
 			$("#stats").append("<div class='control-group'><label class='control-label' for='" + key + "'>" + key + "</label><div class='controls'><span>" + data.stat[key] + "</span></div></div>");
 		}
 		$("#node").append("<p>Data for this node:<br/><strong>" + (data.data == "" ? "&lt;no data&gt;" : data.data) + "</strong></p>");
+            if (data.deflated) {
+                $("#node").append("<p>zlib deflated data for this node:<br><strong>" + (data.deflated) + "</strong></p>");
+            }
 	});
 }
 

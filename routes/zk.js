@@ -2,6 +2,7 @@ var ZK = require ("zookeeper").ZooKeeper
 	, uuid = require("node-uuid");
 
 var app;
+var zlib = require('zlib');
 
 exports.connect = function(req, res) {
 	
@@ -78,12 +79,23 @@ exports.exists = function(req, res) {
 exports.get = function(req, res) {
 	app.zookeepers[ req.session.uuid ][ req.session.currentConnection ].a_get(req.param("path"), null, function(rc,error,stat,data) {
 		var str = "";
-		if ( data != null ) {
-			for ( var i=0; i<data.length; i++ ) {
-				str += String.fromCharCode( data[i] );
-			}
-		}
-		res.json({ path: req.param("path"), stat: stat, data: str });
+                if ( data != null ) {
+                    zlib.inflate(data, function(err, buffer) {
+                        if (!err) {
+                            deflated = buffer.toString();
+                        } else {
+                            deflated = null;
+                        }
+
+                        for ( var i=0; i<data.length; i++ ) {
+                            str += String.fromCharCode( data[i] );
+                        }
+                        res.json({ path: req.param("path"), stat: stat, data: str, deflated: deflated });
+
+                    });
+                } else {
+                    res.json({ path: req.param("path"), stat: stat, data: str, deflated: None });
+                }
 	})
 };
 
