@@ -5,15 +5,15 @@ var app;
 var zlib = require('zlib');
 
 exports.connect = function(req, res) {
-	
+
 	if ( !req.session.uuid ) {
 		req.session.uuid = uuid.v4();
 	}
-	
+
 	if ( app == null ) {
 		app = req.app;
 	}
-	
+
 	var connected = false;
 	var timeout = 10000;
 	if ( req.param("zkhost", null) == null ) {
@@ -27,28 +27,28 @@ exports.connect = function(req, res) {
 			}
 		}, timeout);
 		zk.on (ZK.on_connected, function (zkk) {
-			
+
 			req.session.currentConnection = req.param("zkhost");
-			
+
 			if ( !app.zookeepers[ req.session.currentConnection ] ) {
 				app.zookeepers[ req.session.uuid ] = {};
 			}
-			
+
 			if ( app.zookeepers[ req.session.uuid ][ req.session.currentConnection ] != null ) {
 				try {
 					app.zookeepers[ req.session.uuid ][ req.session.currentConnection ].close();
 				} catch (error) {}
 				app.zookeepers[ req.session.uuid ][ req.session.currentConnection ] = null;
 			}
-			
+
 			zkk.session = req.session.uuid;
 			zkk.connectionString = req.session.currentConnection;
-			
+
 			app.zookeepers[ req.session.uuid ][ req.session.currentConnection ] = zkk;
-			
+
 			res.json({ status: "ok", session: req.session.uuid, connection: req.session.currentConnection });
 			connected = true;
-			
+
 		});
 		zk.on(ZK.on_closed,function(zkk) {
 			//res.json({ status: "error", error: "Not connected to " + req.param("zkhost", null) });
@@ -94,20 +94,20 @@ exports.get = function(req, res) {
 
                     });
                 } else {
-                    res.json({ path: req.param("path"), stat: stat, data: str, deflated: None });
+                    res.json({ path: req.param("path"), stat: stat, data: str, deflated: null });
                 }
 	})
 };
 
 exports.set = function(req, res) {
-	
+
 	if ( app.$config.Auth.requiresAuthentication ) {
 		if ( !req.session.authenticated ) {
 			res.json({ status: "error", error: "no_auth" });
 			return;
 		}
 	}
-	
+
 	app.zookeepers[ req.session.uuid ][ req.session.currentConnection ].a_set(req.param("path"), req.param("data"), parseInt(req.param("version")+""), function(rc,error,stat) {
 		if ( rc == 0 ) {
 			res.json({ status: "ok", path: req.param("path") });
@@ -118,14 +118,14 @@ exports.set = function(req, res) {
 };
 
 exports.deleteSafe = function(req, res) {
-	
+
 	if ( app.$config.Auth.requiresAuthentication ) {
 		if ( !req.session.authenticated ) {
 			res.json({ status: "error", error: "no_auth" });
 			return;
 		}
 	}
-	
+
 	app.zookeepers[ req.session.uuid ][ req.session.currentConnection ].a_delete_(req.param("path"), -1, function(rc, err) {
 		if ( err == "not empty" ) {
 			res.json({ status: "error", error: "not_empty", path: req.param("path") });
@@ -136,28 +136,28 @@ exports.deleteSafe = function(req, res) {
 }
 
 exports.deleteUnsafe = function(req, res) {
-	
+
 	if ( app.$config.Auth.requiresAuthentication ) {
 		if ( !req.session.authenticated ) {
 			res.json({ status: "error", error: "no_auth" });
 			return;
 		}
 	}
-	
+
 	_$deregisterFromZooKeeper(app.zookeepers[ req.session.uuid ][ req.session.currentConnection ], req.param("path"), function() {
 		res.json({ status: "ok", path: req.param("path") });
 	});
 }
 
 exports.create = function(req, res) {
-	
+
 	if ( app.$config.Auth.requiresAuthentication ) {
 		if ( !req.session.authenticated ) {
 			res.json({ status: "error", error: "no_auth" });
 			return;
 		}
 	}
-	
+
 	var rootPath = req.param("path");
 	if ( rootPath == "/" ) { rootPath = ""; }
 	_$createNodes( app.zookeepers[ req.session.uuid ][ req.session.currentConnection ], rootPath, req.param("nodename").split("/"), null, function(status) {
@@ -166,7 +166,7 @@ exports.create = function(req, res) {
 }
 
 exports.watcherRegister = function(req, res) {
-	
+
 	if ( !app.watchers[ req.session.uuid ] ) {
 		app.watchers[ req.session.uuid ] = {};
 	}
@@ -174,11 +174,11 @@ exports.watcherRegister = function(req, res) {
 	_$registerChildrenWatcher( app.zookeepers[ req.session.uuid ][ req.session.currentConnection ], req.param("path") );
 	_$registerDataWatcher( app.zookeepers[ req.session.uuid ][ req.session.currentConnection ], req.param("path") );
 	res.json({ status: "ok" });
-	
+
 }
 
 exports.watcherRemove = function(req, res) {
-	
+
 	if ( !app.watchers[ req.session.uuid ] ) {
 		app.watchers[ req.session.uuid ] = {};
 	}
@@ -186,7 +186,7 @@ exports.watcherRemove = function(req, res) {
 	app.zookeepers[ req.session.uuid ][ req.session.currentConnection ].a_get_children(req.param("path"), false, function(rc,error,children) {});
 	app.zookeepers[ req.session.uuid ][ req.session.currentConnection ].a_get(req.param("path"), false, function(rc,error,stat,data) {});
 	res.json({ status: "ok" });
-	
+
 }
 
 exports.watcherExists = function(req, res) {
@@ -259,4 +259,3 @@ var _$deregisterFromZooKeeper = function(zk, path, callback, workingPath) {
 		}
 	});
 }
-
